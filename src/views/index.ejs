@@ -13,6 +13,9 @@
   <br><br>
   <video id="localVideo" autoplay muted playsinline width="300"></video>
   <video id="remoteVideo" autoplay playsinline width="300"></video>
+  <br><br>
+  <button onclick="shareScreen()">Share Screen</button>
+<button onclick="stopScreenShare()">Stop Sharing</button>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
@@ -98,6 +101,47 @@
         console.error("ICE error", err);
       }
     });
+    let screenTrack = null;
+
+// Share Screen Function
+async function shareScreen() {
+  try {
+    const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+    screenTrack = screenStream.getVideoTracks()[0];
+
+    const sender = peer.getSenders().find(s => s.track.kind === 'video');
+    if (sender) {
+      sender.replaceTrack(screenTrack);
+    }
+
+    document.getElementById('localVideo').srcObject = screenStream;
+
+    screenTrack.onended = () => {
+      stopScreenShare();
+    };
+
+    console.log("✅ Screen sharing started");
+  } catch (err) {
+    console.error("❌ Screen sharing failed:", err);
+  }
+}
+
+// Stop Screen Sharing
+function stopScreenShare() {
+  const sender = peer.getSenders().find(s => s.track.kind === 'video');
+  if (sender && localStream) {
+    const cameraTrack = localStream.getVideoTracks()[0];
+    sender.replaceTrack(cameraTrack);
+    document.getElementById('localVideo').srcObject = localStream;
+    console.log("🛑 Screen sharing stopped");
+  }
+
+  if (screenTrack) {
+    screenTrack.stop();
+    screenTrack = null;
+  }
+}
+
   </script>
 </body>
 </html>
