@@ -64,8 +64,15 @@
 });
 
 
-    function createPeer() {
-      const peer = new RTCPeerConnection();
+function createPeer() {
+  const peer = new RTCPeerConnection({
+    iceServers: [
+      {
+        urls: "stun:stun.l.google.com:19302"
+      }
+    ]
+  });
+
 
       peer.ontrack = (event) => {
         document.getElementById('remoteVideo').srcObject = event.streams[0];
