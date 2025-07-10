@@ -1,32 +1,50 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Video Chat</title>
+  <title>Video Chat with Chat</title>
 </head>
 <body>
-  <h1>WebRTC Video Chat</h1>
+  <h1>WebRTC Video Chat + Chat</h1>
 
   <input type="text" id="room" placeholder="Enter room code">
   <button id="createBtn">Create Room</button>
   <button id="joinBtn">Join Room</button>
 
   <br><br>
+
   <video id="localVideo" autoplay muted playsinline width="300"></video>
   <video id="remoteVideo" autoplay playsinline width="300"></video>
+
   <br><br>
+
   <button onclick="shareScreen()">Share Screen</button>
-<button onclick="stopScreenShare()">Stop Sharing</button>
+  <button onclick="stopScreenShare()">Stop Sharing</button>
+  <button onclick="stopVideoCall()">Stop Video</button>
+  <button onclick="resumeVideoCall()">Resume Video</button>
+
+  <br><br>
+
+  <div>
+    <input type="text" id="chatInput" placeholder="Type a message">
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+  <div id="chatBox" style="border: 1px solid black; width: 300px; height: 150px; overflow-y: scroll; margin-top: 10px;"></div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
     let localStream;
     let peer;
+    let screenTrack = null;
 
-    // Get Camera
     async function startCamera() {
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      document.getElementById('localVideo').srcObject = localStream;
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        document.getElementById('localVideo').srcObject = localStream;
+      } catch (err) {
+        console.error("Camera error:", err);
+      }
     }
 
     startCamera();
@@ -44,40 +62,29 @@
       document.getElementById('room').value = code;
       alert("Room created: " + code);
     });
+
     socket.on('room-joined', async (roomCode) => {
-  if (!localStream) {
-    try {
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      document.getElementById('localVideo').srcObject = localStream;
-    } catch (err) {
-      console.error("⚠️ Error accessing media devices:", err);
-      return;
-    }
-  }
+      if (!localStream) await startCamera();
 
-  peer = createPeer();
-  localStream.getTracks().forEach(track => peer.addTrack(track, localStream));
+      peer = createPeer();
+      localStream.getTracks().forEach(track => peer.addTrack(track, localStream));
 
-  const offer = await peer.createOffer();
-  await peer.setLocalDescription(offer);
-  socket.emit('offer', offer);
-});
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+      socket.emit('offer', offer);
+    });
 
-
-function createPeer() {
-  const peer = new RTCPeerConnection({
-  iceServers: [
-    {
-      urls: "stun:stun.l.google.com:19302"
-    },
-    {
-      urls: "turn:openrelay.metered.ca:80",
-      username: "openrelayproject",
-      credential: "openrelayproject"
-    }
-  ]
-});
-
+    function createPeer() {
+      const peer = new RTCPeerConnection({
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          {
+            urls: "turn:openrelay.metered.ca:80",
+            username: "openrelayproject",
+            credential: "openrelayproject"
+          }
+        ]
+      });
 
       peer.ontrack = (event) => {
         document.getElementById('remoteVideo').srcObject = event.streams[0];
@@ -93,6 +100,8 @@ function createPeer() {
     }
 
     socket.on('offer', async (offer) => {
+      if (!localStream) await startCamera();
+
       peer = createPeer();
       await peer.setRemoteDescription(new RTCSessionDescription(offer));
       localStream.getTracks().forEach(track => peer.addTrack(track, localStream));
@@ -113,61 +122,89 @@ function createPeer() {
         console.error("ICE error", err);
       }
     });
-    let screenTrack = null;
 
-// Share Screen Function
-async function shareScreen() {
-  try {
-    const screenStream = await navigator.mediaDevices.getDisplayMedia({
-      video: true,
-      audio: true, // ✅ This enables system audio (if supported)
-    });
-
-    // Replace local video stream with screen stream
-    const videoElement = document.getElementById('localVideo');
-    videoElement.srcObject = screenStream;
-
-    // Send tracks to peer
-    screenStream.getTracks().forEach(track => {
-      const sender = peer.getSenders().find(s => s.track.kind === track.kind);
-      if (sender) {
-        sender.replaceTrack(track); // Swap old track with screen track
+    function stopVideoCall() {
+      if (localStream) {
+        localStream.getVideoTracks().forEach(track => track.stop());
+        document.getElementById('localVideo').srcObject = null;
+        socket.emit('stop-video');
       }
+    }
+
+    socket.on('stop-video', () => {
+      document.getElementById('remoteVideo').srcObject = null;
+      console.log("Peer stopped video.");
     });
 
-    // When screen sharing is stopped by user
-    screenStream.getVideoTracks()[0].addEventListener('ended', () => {
-      // Revert to camera stream
-      localStream.getTracks().forEach(track => {
-        const sender = peer.getSenders().find(s => s.track.kind === track.kind);
-        if (sender) {
-          sender.replaceTrack(track);
-        }
-      });
+    async function shareScreen() {
+      try {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        screenTrack = screenStream.getVideoTracks()[0];
+        document.getElementById('localVideo').srcObject = screenStream;
 
-      videoElement.srcObject = localStream;
+        const sender = peer.getSenders().find(s => s.track.kind === 'video');
+        if (sender) sender.replaceTrack(screenTrack);
+
+        screenTrack.onended = () => {
+          const cameraTrack = localStream.getVideoTracks()[0];
+          if (sender) sender.replaceTrack(cameraTrack);
+          document.getElementById('localVideo').srcObject = localStream;
+        };
+      } catch (err) {
+        alert("Screen sharing failed: " + err.message);
+      }
+    }
+
+    function stopScreenShare() {
+      if (screenTrack) {
+        screenTrack.stop();
+        const cameraTrack = localStream.getVideoTracks()[0];
+        const sender = peer.getSenders().find(s => s.track.kind === 'video');
+        if (sender) sender.replaceTrack(cameraTrack);
+        document.getElementById('localVideo').srcObject = localStream;
+        screenTrack = null;
+      }
+    }
+
+    // Chat functions
+    function sendMessage() {
+      const msg = document.getElementById('chatInput').value;
+      socket.emit('chat-message', msg);
+      appendMessage("You: " + msg);
+      document.getElementById('chatInput').value = '';
+    }
+
+    socket.on('chat-message', (msg) => {
+      appendMessage("Peer: " + msg);
     });
 
-  } catch (err) {
-    console.error("❌ Failed to share screen with audio:", err);
-    alert("Screen share failed: " + err.message);
-  }
-}
+    function appendMessage(message) {
+      const chatBox = document.getElementById('chatBox');
+      const msgDiv = document.createElement('div');
+      msgDiv.innerText = message;
+      chatBox.appendChild(msgDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+    async function resumeVideoCall() {
+  try {
+    // Reacquire camera
+    const newStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    const newVideoTrack = newStream.getVideoTracks()[0];
 
+    // Replace the video track in the RTCPeerConnection
+    const sender = peer.getSenders().find(s => s.track.kind === 'video');
+    if (sender) {
+      sender.replaceTrack(newVideoTrack);
+    }
 
-// Stop Screen Sharing
-function stopScreenShare() {
-  const sender = peer.getSenders().find(s => s.track.kind === 'video');
-  if (sender && localStream) {
-    const cameraTrack = localStream.getVideoTracks()[0];
-    sender.replaceTrack(cameraTrack);
+    // Set the new stream as local
+    localStream = newStream;
     document.getElementById('localVideo').srcObject = localStream;
-    console.log("🛑 Screen sharing stopped");
-  }
 
-  if (screenTrack) {
-    screenTrack.stop();
-    screenTrack = null;
+    console.log("✅ Video resumed");
+  } catch (err) {
+    console.error("❌ Failed to resume video:", err);
+    alert("Couldn't access camera: " + err.message);
   }
 }
 
