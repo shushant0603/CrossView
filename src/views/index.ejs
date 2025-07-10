@@ -1,12 +1,198 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Video Chat with Chat</title>
+  <title>WebRTC Video Chat + Chat</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Roboto', sans-serif;
+      background-color: #f4f4f4;
+      color: #333;
+    }
+
+    nav {
+      background-color: #1e1e2f;
+      color: white;
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    nav .brand {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+
+    nav .nav-buttons button {
+      margin-left: 10px;
+      padding: 8px 16px;
+      background-color: #4caf50;
+      border: none;
+      color: white;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    nav .nav-buttons button:hover {
+      background-color: #45a049;
+    }
+
+    .page {
+      display: none;
+      padding: 2rem;
+      height: calc(100vh - 64px);
+      overflow-y: auto;
+    }
+
+    #homePage {
+      display: block;
+    }
+
+    .canvas-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 1rem;
+  background-color: #f4f4f4;
+}
+
+#drawCanvas {
+  border: 2px solid #555;
+  background-color: white;
+  width: 100%;
+  max-width: 1000px;
+  height: 1600px; /* Set fixed height to avoid taking full screen */
+}
+
+    .tools {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 1rem;
+    }
+
+    .tools button, .tools input, .tools select {
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      cursor: pointer;
+    }
+
+    .tools input[type='color'] {
+      padding: 0;
+      width: 40px;
+    }
+
+    .tools select {
+      padding: 6px;
+    }
+
+    .video-call-container {
+      display: flex;
+      height: 100%;
+    }
+
+    video {
+      width: 50%;
+      height: 100%;
+      object-fit: cover;
+      border: 1px solid #ccc;
+    }
+
+    .chat-box-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+    }
+
+    #chatBox {
+      border: 1px solid #888;
+      width: 100%;
+      height: 60vh;
+      overflow-y: scroll;
+      background: white;
+      margin-bottom: 1rem;
+      padding: 1rem;
+    }
+
+    #chatInput {
+      width: 70%;
+      padding: 10px;
+      margin-right: 10px;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
 </head>
 <body>
-  <h1>WebRTC Video Chat + Chat</h1>
+  <nav>
+    <div class="brand">WebRTC App</div>
+    <div class="nav-buttons">
+      <button onclick="navigateTo('homePage')">Home</button>
+      <button onclick="navigateTo('videoPage')">Video Call</button>
+      <button onclick="navigateTo('chatPage')">Chat</button>
+      <button onclick="navigateTo('canvasPage')">Canvas</button>
+    </div>
+  </nav>
+  <div id="homePage" class="page">
+    <h2>Connect to Room</h2>
+    <input type="text" id="room" placeholder="Enter room code" />
+    <button id="createBtn">Create Room</button>
+    <button id="joinBtn">Join Room</button>
+  </div>
 
-  <input type="text" id="room" placeholder="Enter room code">
+  <div id="videoPage" class="page">
+    <div class="video-call-container">
+      <video id="localVideo" autoplay muted playsinline></video>
+      <video id="remoteVideo" autoplay playsinline></video>
+    </div>
+    <br>
+    <button onclick="shareScreen()">Share Screen</button>
+    <button onclick="stopScreenShare()">Stop Sharing</button>
+    <button onclick="stopVideoCall()">Stop Video</button>
+    <button onclick="resumeVideoCall()">Resume Video</button>
+  </div>
+
+  <div id="chatPage" class="page">
+    <div class="chat-box-container">
+      <div id="chatBox"></div>
+      <div>
+        <input type="text" id="chatInput" placeholder="Type a message">
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="canvasPage" class="page">
+    <div class="canvas-container">
+      <div class="tools">
+        <button onclick="currentTool = 'pencil'">✏️ Pencil</button>
+        <button onclick="currentTool = 'eraser'">🧽 Eraser</button>
+        <button onclick="currentTool = 'rect'">⬛ Rectangle</button>
+        <button onclick="currentTool = 'circle'">⚪ Circle</button>
+        <input type="color" id="colorPicker" value="#000000" />
+        <input type="range" id="toolSize" min="1" max="50" value="2" />
+      </div>
+      <canvas id="drawCanvas" width="5000" height="5000"></canvas>
+    </div>
+  </div>
+  <!-- <h1>WebRTC Video Chat + Chat</h1>
+  <canvas id="drawCanvas" width="1000" height="3000" style="border:1px solid black;"></canvas> -->
+
+  <!-- <input type="text" id="room" placeholder="Enter room code">
   <button id="createBtn">Create Room</button>
   <button id="joinBtn">Join Room</button>
 
@@ -23,20 +209,29 @@
   <button onclick="resumeVideoCall()">Resume Video</button>
 
   <br><br>
-
+  
   <div>
     <input type="text" id="chatInput" placeholder="Type a message">
     <button onclick="sendMessage()">Send</button>
   </div>
+  
 
-  <div id="chatBox" style="border: 1px solid black; width: 300px; height: 150px; overflow-y: scroll; margin-top: 10px;"></div>
+  <div id="chatBox" style="border: 1px solid black; width: 300px; height: 150px; overflow-y: scroll; margin-top: 10px;"></div> -->
 
   <script src="/socket.io/socket.io.js"></script>
+  <script>
+     function navigateTo(pageId) {
+      const pages = document.querySelectorAll('.page');
+      pages.forEach(p => p.style.display = 'none');
+      document.getElementById(pageId).style.display = 'block';
+    }
+  </script>
   <script>
     const socket = io();
     let localStream;
     let peer;
     let screenTrack = null;
+    let originalVideoTrack = null; // 🧠 Store original track
 
     async function startCamera() {
       try {
@@ -124,17 +319,64 @@
     });
 
     function stopVideoCall() {
-      if (localStream) {
-        localStream.getVideoTracks().forEach(track => track.stop());
-        document.getElementById('localVideo').srcObject = null;
+      const sender = peer.getSenders().find(s => s.track && s.track.kind === 'video');
+      if (sender) {
+        originalVideoTrack = sender.track;
+        const blankTrack = createSilentVideoTrack();
+        sender.replaceTrack(blankTrack);
+        document.getElementById('localVideo').srcObject = new MediaStream([blankTrack]);
         socket.emit('stop-video');
       }
     }
 
+    async function resumeVideoCall() {
+      try {
+        const newStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const newVideoTrack = newStream.getVideoTracks()[0];
+
+        const sender = peer.getSenders().find(s => s.track && s.track.kind === 'video');
+
+        if (sender) {
+          await sender.replaceTrack(newVideoTrack);
+        } else {
+          peer.addTrack(newVideoTrack, newStream);
+        }
+
+        localStream = newStream;
+        document.getElementById('localVideo').srcObject = localStream;
+
+        socket.emit('resume-video');
+      } catch (err) {
+        console.error("❌ Couldn't resume video:", err);
+        alert("Camera resume failed: " + err.message);
+      }
+    }
+
     socket.on('stop-video', () => {
-      document.getElementById('remoteVideo').srcObject = null;
-      console.log("Peer stopped video.");
+      const blankTrack = createSilentVideoTrack();
+      const blankStream = new MediaStream([blankTrack]);
+      document.getElementById('remoteVideo').srcObject = blankStream;
+      console.log("🖤 Peer stopped video → showing black");
     });
+
+    socket.on('resume-video', () => {
+      console.log("📺 Resume signal received from peer");
+
+      const receiver = peer.getReceivers().find(r => r.track && r.track.kind === 'video');
+      if (receiver && receiver.track) {
+        const remoteVideo = document.getElementById('remoteVideo');
+        remoteVideo.srcObject = new MediaStream([receiver.track]);
+      }
+    });
+
+    function createSilentVideoTrack() {
+      const canvas = Object.assign(document.createElement("canvas"), { width: 640, height: 480 });
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "black";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const stream = canvas.captureStream(10);
+      return stream.getVideoTracks()[0];
+    }
 
     async function shareScreen() {
       try {
@@ -166,7 +408,6 @@
       }
     }
 
-    // Chat functions
     function sendMessage() {
       const msg = document.getElementById('chatInput').value;
       socket.emit('chat-message', msg);
@@ -185,29 +426,155 @@
       chatBox.appendChild(msgDiv);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
-    async function resumeVideoCall() {
-  try {
-    // Reacquire camera
-    const newStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-    const newVideoTrack = newStream.getVideoTracks()[0];
+   
+   
+   
+  </script>
+<script>
+  const canvas = document.getElementById("drawCanvas");
+  const ctx = canvas.getContext("2d");
+  let drawing = false;
+  let currentColor = document.getElementById("colorPicker").value;
+  let startX, startY;
+  let currentToolSize = 2;
+  let drawHistory = [];
+  let currentTool = 'pencil'; // Default tool
 
-    // Replace the video track in the RTCPeerConnection
-    const sender = peer.getSenders().find(s => s.track.kind === 'video');
-    if (sender) {
-      sender.replaceTrack(newVideoTrack);
-    }
+  // 🟡 Resize and redraw the canvas
+  function resizeCanvas() {
+  const canvas = document.getElementById("drawCanvas");
+  const container = canvas.parentElement;
+  const width = container.clientWidth;
+  const height = container.clientHeight;
 
-    // Set the new stream as local
-    localStream = newStream;
-    document.getElementById('localVideo').srcObject = localStream;
+  canvas.style.width = width + "px";   // CSS size
+  canvas.style.height = height + "px"; // CSS size
 
-    console.log("✅ Video resumed");
-  } catch (err) {
-    console.error("❌ Failed to resume video:", err);
-    alert("Couldn't access camera: " + err.message);
-  }
+  canvas.width = width;   // internal resolution
+  canvas.height = height; // internal resolution
+
+  redrawCanvas();
 }
 
-  </script>
+
+  // window.addEventListener("load", resizeCanvas);
+  // window.addEventListener("resize", resizeCanvas);
+
+  // 🟡 Update tool size
+  document.getElementById("toolSize").addEventListener("input", (e) => {
+    currentToolSize = parseInt(e.target.value);
+  });
+
+  // 🟡 Mouse down
+  canvas.addEventListener("mousedown", (e) => {
+    drawing = true;
+    [startX, startY] = getMousePos(e);
+    if (currentTool === 'pencil' || currentTool === 'eraser') {
+      drawDot(startX, startY, getCurrentColor(), currentToolSize);
+      const dotData = { type: 'dot', x: startX, y: startY, color: getCurrentColor(), size: currentToolSize };
+      drawHistory.push(dotData);
+      socket.emit('draw', dotData);
+    }
+  });
+
+  // 🟡 Mouse up
+  canvas.addEventListener("mouseup", (e) => {
+    if (!drawing) return;
+    const [endX, endY] = getMousePos(e);
+    if (currentTool === 'rect') {
+      drawRect(startX, startY, endX, endY, currentColor);
+      const rectData = { type: 'rect', x1: startX, y1: startY, x2: endX, y2: endY, color: currentColor };
+      drawHistory.push(rectData);
+      socket.emit('draw', rectData);
+    } else if (currentTool === 'circle') {
+      drawCircle(startX, startY, endX, endY, currentColor);
+      const circleData = { type: 'circle', x1: startX, y1: startY, x2: endX, y2: endY, color: currentColor };
+      drawHistory.push(circleData);
+      socket.emit('draw', circleData);
+    }
+    drawing = false;
+  });
+
+  // 🟡 Mouse move (draw)
+  canvas.addEventListener("mousemove", (e) => {
+    if (!drawing || (currentTool !== 'pencil' && currentTool !== 'eraser')) return;
+    const [x, y] = getMousePos(e);
+    drawDot(x, y, getCurrentColor(), currentToolSize);
+    const dotData = { type: 'dot', x, y, color: getCurrentColor(), size: currentToolSize };
+    drawHistory.push(dotData);
+    socket.emit('draw', dotData);
+  });
+
+  // 🟡 Get mouse coordinates relative to canvas
+ // 🟡 Get mouse coordinates relative to canvas
+ function getMousePos(e) {
+    const rect = canvas.getBoundingClientRect();
+    // Calculate the scaling factors
+    // canvas.width and canvas.height refer to the internal resolution (5000x5000)
+    // rect.width and rect.height refer to the displayed CSS size (e.g., 1000x1600)
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    // Apply the scaling factor to the mouse coordinates
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+    return [x, y];
+  }
+
+  // 🟡 Get current color (or white for eraser)
+  function getCurrentColor() {
+    return currentTool === 'eraser' ? "#ffffff" : document.getElementById("colorPicker").value;
+  }
+
+  // 🟡 Drawing functions
+  function drawDot(x, y, color, size = currentToolSize) {
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  function drawRect(x1, y1, x2, y2, color) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+  }
+
+  function drawCircle(x1, y1, x2, y2, color) {
+    const radius = Math.hypot(x2 - x1, y2 - y1);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x1, y1, radius, 0, 2 * Math.PI);
+    ctx.stroke();
+  }
+
+  // 🟡 Redraw canvas from history
+  function redrawCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const d of drawHistory) {
+      if (d.type === 'dot') drawDot(d.x, d.y, d.color, d.size);
+      else if (d.type === 'rect') drawRect(d.x1, d.y1, d.x2, d.y2, d.color);
+      else if (d.type === 'circle') drawCircle(d.x1, d.y1, d.x2, d.y2, d.color);
+    }
+  }
+
+  // 🟡 Listen to peer drawing via socket
+  socket.on("draw", data => {
+    if (data.type === 'dot') {
+      drawDot(data.x, data.y, data.color, data.size);
+    } else if (data.type === 'rect') {
+      drawRect(data.x1, data.y1, data.x2, data.y2, data.color);
+    } else if (data.type === 'circle') {
+      drawCircle(data.x1, data.y1, data.x2, data.y2, data.color);
+    }
+    drawHistory.push(data);
+  });
+</script>
+
+  
+  
+  
+  
+  <!-- <script src="public/script.js"></script> -->
 </body>
 </html>

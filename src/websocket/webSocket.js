@@ -45,11 +45,19 @@ export const setupWebSocket = (io) => {
       socket.to(getRoom(socket)).emit('stop-video');
     });
 
-    // Utility to get the joined room code
+    // ✅ Relay Resume Video (missing earlier)
+    socket.on('resume-video', () => {
+      socket.to(getRoom(socket)).emit('resume-video');
+    });
+  // 🔄 Relay Canvas Drawing Event
+  socket.on('draw', (data) => {
+    socket.to(getRoom(socket)).emit('draw', data);
+  });
+
+    // Utility: Get the room joined (other than socket.id)
     function getRoom(socket) {
-      // socket.rooms is a Set containing [socket.id, roomCode]
       const rooms = [...socket.rooms];
-      return rooms.length > 1 ? rooms[1] : null; // Get actual roomCode, skip socket.id
+      return rooms.length > 1 ? rooms[1] : null;
     }
   });
 };
