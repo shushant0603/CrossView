@@ -569,6 +569,64 @@
     }
     drawHistory.push(data);
   });
+
+
+
+  function getTouchPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0] || e.changedTouches[0];
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const x = (touch.clientX - rect.left) * scaleX;
+  const y = (touch.clientY - rect.top) * scaleY;
+  return [x, y];
+}
+// 🟢 Touch Start
+canvas.addEventListener("touchstart", (e) => {
+  e.preventDefault(); // Prevent scrolling
+  drawing = true;
+  const [x, y] = getTouchPos(e);
+  [startX, startY] = [x, y];
+  if (currentTool === 'pencil' || currentTool === 'eraser') {
+    drawDot(x, y, getCurrentColor(), currentToolSize);
+    const dotData = { type: 'dot', x, y, color: getCurrentColor(), size: currentToolSize };
+    drawHistory.push(dotData);
+    socket.emit('draw', dotData);
+  }
+});
+
+// 🟢 Touch Move
+canvas.addEventListener("touchmove", (e) => {
+  e.preventDefault();
+  if (!drawing || (currentTool !== 'pencil' && currentTool !== 'eraser')) return;
+  const [x, y] = getTouchPos(e);
+  drawDot(x, y, getCurrentColor(), currentToolSize);
+  const dotData = { type: 'dot', x, y, color: getCurrentColor(), size: currentToolSize };
+  drawHistory.push(dotData);
+  socket.emit('draw', dotData);
+});
+
+// 🟢 Touch End
+canvas.addEventListener("touchend", (e) => {
+  e.preventDefault();
+  if (!drawing) return;
+  const [x, y] = [startX, startY]; // Use last known position for shapes
+  const touch = e.changedTouches[0];
+  const [endX, endY] = getTouchPos(e);
+  if (currentTool === 'rect') {
+    drawRect(startX, startY, endX, endY, currentColor);
+    const rectData = { type: 'rect', x1: startX, y1: startY, x2: endX, y2: endY, color: currentColor };
+    drawHistory.push(rectData);
+    socket.emit('draw', rectData);
+  } else if (currentTool === 'circle') {
+    drawCircle(startX, startY, endX, endY, currentColor);
+    const circleData = { type: 'circle', x1: startX, y1: startY, x2: endX, y2: endY, color: currentColor };
+    drawHistory.push(circleData);
+    socket.emit('draw', circleData);
+  }
+  drawing = false;
+});
+
 </script>
 
   
