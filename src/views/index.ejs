@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WebRTC Video Chat + Chat</title>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <style>
@@ -88,10 +89,66 @@
       padding: 6px;
     }
 
-    .video-call-container {
-      display: flex;
-      height: 100%;
-    }
+/* Default (remote big, local small) */
+.video-call-container:not(.swapped) #remoteVideo {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  object-fit: cover;
+}
+
+.video-call-container:not(.swapped) #localVideo {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 200px;
+  height: 150px;
+  border: 2px solid white;
+  border-radius: 10px;
+  z-index: 10;
+  object-fit: cover;
+}
+
+/* Swapped (local big, remote small) */
+.video-call-container.swapped #localVideo {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  object-fit: cover;
+}
+
+.video-call-container.swapped #remoteVideo {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 200px;
+  height: 150px;
+  border: 2px solid white;
+  border-radius: 10px;
+  z-index: 10;
+  object-fit: cover;
+}
+
+
+/* Remote video full screen */
+#remoteVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Local video as small overlay */
+#localVideo {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 200px;
+  height: 150px;
+  border: 2px solid white;
+  border-radius: 10px;
+  object-fit: cover;
+  z-index: 10;
+}
 
     video {
       width: 50%;
@@ -189,35 +246,7 @@
       <canvas id="drawCanvas" width="5000" height="5000"></canvas>
     </div>
   </div>
-  <!-- <h1>WebRTC Video Chat + Chat</h1>
-  <canvas id="drawCanvas" width="1000" height="3000" style="border:1px solid black;"></canvas> -->
-
-  <!-- <input type="text" id="room" placeholder="Enter room code">
-  <button id="createBtn">Create Room</button>
-  <button id="joinBtn">Join Room</button>
-
-  <br><br>
-
-  <video id="localVideo" autoplay muted playsinline width="300"></video>
-  <video id="remoteVideo" autoplay playsinline width="300"></video>
-
-  <br><br>
-
-  <button onclick="shareScreen()">Share Screen</button>
-  <button onclick="stopScreenShare()">Stop Sharing</button>
-  <button onclick="stopVideoCall()">Stop Video</button>
-  <button onclick="resumeVideoCall()">Resume Video</button>
-
-  <br><br>
-  
-  <div>
-    <input type="text" id="chatInput" placeholder="Type a message">
-    <button onclick="sendMessage()">Send</button>
-  </div>
-  
-
-  <div id="chatBox" style="border: 1px solid black; width: 300px; height: 150px; overflow-y: scroll; margin-top: 10px;"></div> -->
-
+ 
   <script src="/socket.io/socket.io.js"></script>
   <script>
      function navigateTo(pageId) {
@@ -225,6 +254,15 @@
       pages.forEach(p => p.style.display = 'none');
       document.getElementById(pageId).style.display = 'block';
     }
+
+    document.getElementById("localVideo").addEventListener("click", toggleVideoSize);
+document.getElementById("remoteVideo").addEventListener("click", toggleVideoSize);
+
+function toggleVideoSize() {
+  const container = document.querySelector(".video-call-container");
+  container.classList.toggle("swapped");
+}
+
   </script>
   <script>
     const socket = io();
